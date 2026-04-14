@@ -2,8 +2,9 @@ import re
 import json
 import typer
 from pathlib import Path
-from client.fetch import fetch_jobs
-from client.models import validate_client_config
+from job_filter.client.fetch import fetch_jobs
+from job_filter.client.models import validate_client_config
+from job_filter.client.models import DEFAULT_CONFIG_PATH
 
 app = typer.Typer()
 
@@ -34,7 +35,8 @@ def fetch():
 @app.command()
 def create():
   """Create a new client.json interactively."""
-  config_path = Path("client.json")
+  config_path = DEFAULT_CONFIG_PATH
+
   if config_path.exists():
     overwrite = typer.confirm("client.json already exists. Overwrite?")
     if not overwrite:
@@ -67,7 +69,8 @@ def create():
 @app.command()
 def adjust():
   """Adjust existing client.json interactively."""
-  config_path = Path("client.json")
+  config_path = DEFAULT_CONFIG_PATH
+
   if not config_path.exists():
     print("No client.json found. Run `job_filter config create` first.")
     raise typer.Abort()

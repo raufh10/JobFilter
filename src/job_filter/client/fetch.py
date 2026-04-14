@@ -1,5 +1,5 @@
 from jobspy import scrape_jobs
-from client.models import validate_client_config
+from job_filter.client.models import validate_client_config
 import pandas as pd
 
 def fetch_jobs(config_path: str = "client.json") -> pd.DataFrame:
