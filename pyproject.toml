@@ -1,0 +1,31 @@
+[project]
+name = "job_filter"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "pydantic",
+  "python-jobspy",
+  "typer"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+  "pytest-asyncio>=0.23.0",
+  "ruff>=0.4.0",
+  "mypy>=1.10.0",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[project.scripts]
+job_filter = "main:app"
