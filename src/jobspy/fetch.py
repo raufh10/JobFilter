@@ -33,10 +33,11 @@ class JobResponse(BaseModel):
   @classmethod
   def from_dataframe(cls, df: pd.DataFrame):
     """
-    Creates a JobResponse directly from the jobspy DataFrame.
+    Creates a JobResponse directly from the jobspy DataFrame
     """
-    # Uses dictionary unpacking because fields match perfectly
-    records = df.to_dict(orient="records")
+    clean_df = df.where(pd.notnull(df), None)
+    records = clean_df.to_dict(orient="records")
+    
     return cls(jobs=[JobPost(**row) for row in records])
 
   def filter_by_search_term(self, search_term: str):

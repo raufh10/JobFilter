@@ -1,7 +1,7 @@
 import logging
 import sys
 
-from src.common import settings
+from src.common.config import settings
 
 def setup_logging() -> None:
   level = logging.DEBUG if settings.debug else logging.INFO
