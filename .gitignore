@@ -9,4 +9,4 @@ dist/
 .pytest_cache/
 .env.example
 build/
-src/job_filter/core/client.json
+data/
