@@ -1,18 +1,16 @@
 import json
+import pandas as pd
 from pathlib import Path
-
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Any
 from datetime import date
-
 from jobspy import scrape_jobs
-
 from src.jobspy.client import JobSpyClient
 
 class JobPost(BaseModel):
   id: str | None = None
   title: str
-  company_name: str | None
+  company_name: str | None = None
   job_url: str
   location: Optional[str] = None
   description: str | None = None
@@ -28,18 +26,45 @@ class JobPost(BaseModel):
 class JobResponse(BaseModel):
   jobs: list[JobPost] = []
 
+  @classmethod
+  def from_dataframe(cls, df: pd.DataFrame):
+    """
+    Creates a JobResponse directly from the jobspy DataFrame.
+    """
+    # Uses dictionary unpacking because fields match perfectly
+    records = df.to_dict(orient="records")
+    return cls(jobs=[JobPost(**row) for row in records])
+
+  def filter_by_search_term(self, search_term: str):
+    """
+    Filters the internal jobs list in-place. 
+    Maintains the JobResponse type.
+    """
+    term = search_term.lower()
+    self.jobs = [
+      job for job in self.jobs
+      if (job.title and term in job.title.lower()) or 
+         (job.description and term in job.description.lower())
+    ]
+    return self
+
+  def to_dataframe(self) -> pd.DataFrame:
+    """
+    Export current state to DataFrame only when requested.
+    """
+    return pd.DataFrame([job.model_dump() for job in self.jobs])
+
   def to_json(self, file_path: str | Path):
     path = Path(file_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-
     json_data = self.model_dump_json(indent=2)
     path.write_text(json_data, encoding="utf-8")
 
 def fetch_jobs(config: JobSpyClient) -> JobResponse:
   """
-  Scrapes Indeed jobs and returns a JobResponse object.
+  Scrapes jobs and returns the JobResponse object as is.
   """
-  jobs = scrape_jobs(
+  raw_jobs_df = scrape_jobs(
     site_name=config.site_name,
     search_term=config.search_term,
     location=config.location,
@@ -49,4 +74,4 @@ def fetch_jobs(config: JobSpyClient) -> JobResponse:
     remote_only=config.remote_only,
   )
 
-  return jobs
+  return JobResponse.from_dataframe(raw_jobs_df)
