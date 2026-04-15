@@ -1,11 +1,15 @@
 import json
 import pandas as pd
+
 from pathlib import Path
 from pydantic import BaseModel
 from typing import Optional, Any
 from datetime import date
+
 from jobspy import scrape_jobs
+
 from src.jobspy.client import JobSpyClient
+from src.tiktoken import BatchTokenCount, TokenCount, TokenCounter
 
 class JobPost(BaseModel):
   id: str | None = None
@@ -54,11 +58,31 @@ class JobResponse(BaseModel):
     """
     return pd.DataFrame([job.model_dump() for job in self.jobs])
 
-  def to_json(self, file_path: str | Path):
+  def get_token_counts(self, model_name: str = "gpt-5.4-nano") -> BatchTokenCount:
+    """
+    Calculates token counts for all job descriptions currently in the model.
+    """
+    counter = TokenCounter(model_name=model_name)
+    descriptions = [job.description if job.description else "" for job in self.jobs]
+    return counter.count_batch(descriptions)
+
+  def to_json(self, file_path: str | Path, include_tokens: bool = False):
+    """
+    Saves the job data to JSON. 
+    If include_tokens is True, it merges token metadata into the output.
+    """
+
     path = Path(file_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    json_data = self.model_dump_json(indent=2)
-    path.write_text(json_data, encoding="utf-8")
+    
+    export_data = self.model_dump()
+    
+    if include_tokens:
+      token_meta = self.get_token_counts()
+      export_data["token_metadata"] = token_meta.model_dump()
+
+    with open(path, 'w', encoding='utf-8') as f:
+      json.dump(export_data, f, indent=2, default=str)
 
 def fetch_jobs(config: JobSpyClient) -> JobResponse:
   """

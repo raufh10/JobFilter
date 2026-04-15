@@ -1,8 +1,7 @@
 import logging
 import sys
 
-from job_filter.packages.common.src.config import settings
-#from common import settings
+from src.common import settings
 
 def setup_logging() -> None:
   level = logging.DEBUG if settings.debug else logging.INFO

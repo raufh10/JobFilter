@@ -2,12 +2,11 @@ import tiktoken
 from .models import TokenCount, BatchTokenCount
 
 class TokenCounter:
-  def __init__(self, model_name: str = "gpt-4o"):
+  def __init__(self, model_name: str = "gpt-5.4-nano"):
     """Initializes the encoder for a specific model."""
     try:
       self.encoder = tiktoken.encoding_for_model(model_name)
     except KeyError:
-      # Fallback to cl100k_base if model name is unknown
       self.encoder = tiktoken.get_encoding("cl100k_base")
 
   def count_tokens(self, text: str) -> TokenCount:
