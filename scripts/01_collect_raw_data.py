@@ -1,38 +1,51 @@
 import sys
+import logging
 from pathlib import Path
 
 project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
 
 from src.jobspy import JobSpyClient, fetch_jobs
+from src.common import setup_logging
+
+logger = logging.getLogger(__name__)
 
 def main():
+  # 1. Initialize logging system
+  setup_logging()
 
-  # 1. Initialize your configuration
+  # 2. Initialize configuration
   config = JobSpyClient(
-    search_term="Software Engineer",
-    location="Jakarta",
-    results_wanted=10,
-    hours_old=72,
+    search_term="Data Analyst",
+    location="Indonesia",
+    results_wanted=1000,
+    hours_old=8760,
     remote_only=False
   )
 
-  print(f"🚀 Starting scrape for '{config.search_term}' in {config.location}...")
+  logger.info(f"🚀 Starting scrape for '{config.search_term}' in {config.location}...")
 
   try:
-    # 2. Fetch the data
+    # 3. Fetch the data
     results = fetch_jobs(config)
+    logger.info(f"📥 Received {len(results.jobs)} raw results from JobSpy.")
 
-     # 3. Define output path (saving to project_root/data/)
-     output_file = project_root / "data" / "raw_data.json"
-     results.to_json(output_file)
+    # 4. Filter results based on search term in title/description
+    results.filter_by_search_term(config.search_term)
+    logger.info(f"🔍 After filtering, {len(results.jobs)} jobs remain.")
 
-     print(f"✅ Successfully collected {len(results.jobs)} jobs.")
-     print(f"📁 Data saved to: {output_file.absolute()}")
+    # 5. Define output path
+    output_file = project_root / "data" / "raw_data.json"
+    
+    # 6. Save to JSON including the token counts for LLM readiness
+    results.to_json(output_file, include_tokens=True)
+
+    logger.info(f"✅ Successfully processed and saved data.")
+    logger.info(f"📁 Path: {output_file.absolute()}")
 
   except Exception as e:
-    print(f"❌ An error occurred during collection: {e}")
-    raise e
+    logger.error(f"❌ An error occurred during collection: {e}", exc_info=True)
+    sys.exit(1)
 
 if __name__ == "__main__":
   main()
