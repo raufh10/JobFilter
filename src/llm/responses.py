@@ -1,16 +1,32 @@
-from job_filter.packages.llm.src.client import LLMClient
+import re
+from src.llm.client import LLMClient
+
+def clean_text(text: str) -> str:
+  """
+  Cleans raw text using regex:
+  1. Removes HTML tags.
+  2. Replaces multiple newlines/spaces with a single space.
+  3. Strips leading/trailing whitespace.
+  """
+
+  if not text:
+    return ""
+  text = re.sub(r'<[^>]*>', ' ', text)
+  text = re.sub(r'\s+', ' ', text)
+  return text.strip()
 
 def generate_structured_response(llm: LLMClient, user_input: str):
+  """
+  Cleans input and generates a structured response using responses.parse API.
+  """
 
-  """
-  Generates a structured response using responses.parse API.
-  """
+  cleaned_input = clean_text(user_input)
 
   response = llm.client.responses.parse(
     model=llm.model,
     input=[
       {"role": "system", "content": llm.system_prompt},
-      {"role": "user", "content": user_input},
+      {"role": "user", "content": cleaned_input},
     ],
     text_format=llm.format_schema,
     prompt_cache_key=llm.prompt_key,
