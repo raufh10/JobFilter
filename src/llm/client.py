@@ -15,6 +15,7 @@ class LLMClient(BaseModel):
   model: str
   system_prompt: str
   format_schema: Type[BaseModel]
+  prompt_key: str
 
   # Populated automatically after initialization
   client: OpenAI = None 

@@ -13,6 +13,9 @@ def generate_structured_response(llm: LLMClient, user_input: str):
       {"role": "user", "content": user_input},
     ],
     text_format=llm.format_schema,
+    prompt_cache_key=llm.prompt_key,
+    prompt_cache_retention="in-memory",
+    service_tier="flex",
   )
 
   return response.output_parsed
