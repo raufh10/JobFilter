@@ -1,10 +1,11 @@
 from jobspy import scrape_jobs
-from job_filter.client.models import validate_client_config
-import pandas as pd
+from job_filter.packages.common.src.models import JobFilterConfig, JobResponse
+#from common import JobFilterConfig, JobResponse
 
-def fetch_jobs(config_path: str = "client.json") -> pd.DataFrame:
-  config = validate_client_config(config_path)
-
+def fetch_jobs(config: JobFilterConfig) -> JobResponse:
+  """
+  Scrapes Indeed jobs and returns a JobResponse object.
+  """
   jobs = scrape_jobs(
     site_name=config.site_name,
     search_term=config.search_term,
