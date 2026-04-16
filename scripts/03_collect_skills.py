@@ -15,33 +15,18 @@ from src.common import setup_logging, settings
 
 # --- 1. Schemas ---
 
-SkillCategory = Literal["languages", "tools", "frameworks", "techniques", "cloud_platforms"]
-
-class TokenPattern(BaseModel):
+class SkillExtraction(BaseModel):
   model_config = ConfigDict(extra='forbid')
 
-  LOWER: str | None = Field(default=None, serialization_alias="LOWER")
-  UPPER: str | None = Field(default=None, serialization_alias="UPPER")
-  TEXT: str | None = Field(default=None, serialization_alias="TEXT")
-  LEMMA: str | None = Field(default=None, serialization_alias="LEMMA")
-  IS_PUNCT: bool | None = Field(default=None, serialization_alias="IS_PUNCT")
-  IS_ALPHA: bool | None = Field(default=None, serialization_alias="IS_ALPHA")
-  IS_DIGIT: bool | None = Field(default=None, serialization_alias="IS_DIGIT")
-  IS_SPACE: bool | None = Field(default=None, serialization_alias="IS_SPACE")
-  OP: Literal["?", "*", "+", "!"] | None = Field(default=None, serialization_alias="OP")
+  languages: list[str] = Field(description="Programming languages like Python, R, SQL, Julia.")
+  tools: list[str] = Field(description="Software/platforms like Tableau, PowerBI, Docker, Git, Airflow.")
+  frameworks: list[str] = Field(description="Libraries or frameworks like PyTorch, TensorFlow, Scikit-learn, Spark.")
+  techniques: list[str] = Field(description="Methodologies like A/B Testing, Regression, Deep Learning, ETL.")
+  cloud_platforms: list[str] = Field(description="Cloud services like AWS, GCP, Azure and specific services like S3, BigQuery.")
 
-class EntityPattern(BaseModel):
+class SkillExtractionValidator(BaseModel):
   model_config = ConfigDict(extra='forbid')
-  label: SkillCategory = Field(..., description="The category of the skill")
-  pattern: Union[str, List[TokenPattern]] = Field(..., description="String or spaCy token pattern")
-
-class EntityPatterns(BaseModel):
-  model_config = ConfigDict(extra='forbid')
-  patterns: List[EntityPattern] = Field(..., description="Collection of spaCy entity patterns")
-
-class EntityPatternsValidator(BaseModel):
-  model_config = ConfigDict(extra='forbid')
-  is_valid: bool = Field(..., description="True if patterns are correctly formatted and categorized.")
+  is_valid: bool = Field(..., description="True if lists are correctly formatted and categorized.")
   corrections: List[str] = Field(default_factory=list, description="Specific issues to fix.")
 
 # --- 2. Prompts ---
@@ -117,7 +102,7 @@ def main():
     model="gpt-5.4-mini",
     name="pattern_gen",
     system_prompt=GEN_SYSTEM_PROMPT,
-    format_schema=EntityPatterns,
+    format_schema=SkillExtraction,
     prompt_key="p_gen"
   )
 
@@ -126,7 +111,7 @@ def main():
     model="gpt-5.4",
     name="pattern_val",
     system_prompt=VAL_SYSTEM_PROMPT,
-    format_schema=EntityPatternsValidator,
+    format_schema=SkillExtractionValidator,
     prompt_key="p_val"
   )
 
