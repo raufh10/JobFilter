@@ -4,7 +4,7 @@ import logging
 
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
@@ -15,6 +15,8 @@ from src.tiktoken import TokenCounter
 
 # 1. Skill Extraction Schema
 class SkillExtraction(BaseModel):
+  model_config = ConfigDict(extra='forbid')
+
   languages: list[str] = Field(description="Programming languages like Python, R, SQL, Julia.")
   tools: list[str] = Field(description="Software/platforms like Tableau, PowerBI, Docker, Git, Airflow.")
   frameworks: list[str] = Field(description="Libraries or frameworks like PyTorch, TensorFlow, Scikit-learn, Spark.")
@@ -54,7 +56,7 @@ def process_single_job(job: dict, llm: LLMClient) -> dict | None:
     return {
       "job_id": job_id,
       "title": title,
-      "extracted_data": skills_data.model_dump()
+      "skills": skills_data.model_dump()
     }
   except Exception as e:
     logger.error(f"  ⚠️ Failed job {job_id}: {e}")
@@ -64,7 +66,7 @@ def main():
   setup_logging()
   
   input_file = project_root / "data" / "raw_data.json"
-  output_file = project_root / "data" / "extracted_skills.json"
+  output_file = project_root / "data" / "raw_skills.json"
 
   if not input_file.exists():
     logger.error(f"❌ Input file not found: {input_file}")
@@ -74,7 +76,6 @@ def main():
     data = json.load(f)
     jobs = data.get("jobs", [])
 
-  jobs = jobs[:5]
   llm = LLMClient(
     api_key=settings.openai_api_key, 
     model=MODEL,

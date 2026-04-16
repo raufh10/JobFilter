@@ -36,13 +36,13 @@ def generate_structured_response(llm: LLMClient, user_input: str):
     text={
       "format": {
         "type": "json_schema",
-        "name": "llm.name",
+        "name": llm.name,
         "schema": json_schema,
         "strict": True
       }
     },
     prompt_cache_key=llm.prompt_key,
-    prompt_cache_retention="in-memory",
+    prompt_cache_retention="in_memory",
     service_tier="flex"
   )
 
