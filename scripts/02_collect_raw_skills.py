@@ -30,7 +30,7 @@ NAME = "raw_skills"
 PROMPT_KEY = "raw_skills-v1"
 
 SYSTEM_PROMPT = """
-You are an expert Technical Recruiter specializing in Data Analytics.
+You are an expert Technical Recruiter.
 Your task is to parse job descriptions and extract technical requirements into a structured format.
 
 Guidelines:

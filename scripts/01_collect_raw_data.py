@@ -10,18 +10,22 @@ from src.common import setup_logging
 
 logger = logging.getLogger(__name__)
 
-def main():
+def main(overrides: dict = None):
   # 1. Initialize logging system
   setup_logging()
 
-  # 2. Initialize configuration
-  config = JobSpyClient(
-    search_term="Data Analyst",
-    location="Indonesia",
-    results_wanted=1000,
-    hours_old=8760,
-    remote_only=False
-  )
+  # 2. Define default configuration
+  default_config = {
+    "search_term": "Data Analyst",
+    "location": "Indonesia",
+    "results_wanted": 1000,
+    "hours_old": 8760,
+    "remote_only": False
+  }
+
+  if overrides:
+    default_config.update(overrides)
+  config = JobSpyClient(**default_config)
 
   logger.info(f"🚀 Starting scrape for '{config.search_term}' in {config.location}...")
 

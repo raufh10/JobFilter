@@ -4,6 +4,9 @@ import sys
 from src.common.config import settings
 
 def setup_logging() -> None:
+  if logging.getLogger().handlers:
+    return
+
   level = logging.DEBUG if settings.debug else logging.INFO
 
   logging.basicConfig(

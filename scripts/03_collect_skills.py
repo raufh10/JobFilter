@@ -32,7 +32,7 @@ class SkillExtractionValidator(BaseModel):
 # --- 2. Prompts ---
 
 GEN_SYSTEM_PROMPT = """
-You are a Senior Data roles Recruiter.
+You are a Senior Technical Recruiter.
 Consolidate technical skills from text and categorize them strictly.
 
 CATEGORIES:
