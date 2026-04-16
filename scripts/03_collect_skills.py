@@ -32,18 +32,49 @@ class SkillExtractionValidator(BaseModel):
 # --- 2. Prompts ---
 
 GEN_SYSTEM_PROMPT = """
-You are a Senior NLP Engineer. Convert raw skills into spaCy EntityRuler patterns.
-- Use Strings for simple exact matches (e.g., 'Python').
-- Use Token Patterns (List of Dicts) for multi-word or hyphenated skills (e.g., 'Scikit-learn').
-- Use 'LOWER' for case-insensitivity and 'OP': '?' for optional punctuation.
+You are a Senior Data roles Recruiter.
+Consolidate technical skills from text and categorize them strictly.
+
+CATEGORIES:
+- languages: Programming/query languages only (Python, R, SQL, Scala, Julia, Bash)
+- tools: Named software, platforms, or products (Tableau, PowerBI, Docker, Git, Airflow, Jira, Looker)
+- frameworks: Libraries and ML/data frameworks (PyTorch, TensorFlow, Scikit-learn, Spark, Pandas, dbt)
+- techniques: Methodologies and analytical approaches (A/B Testing, Regression, ETL, Deep Learning, Feature Engineering)
+- cloud_platforms: Cloud providers AND their specific services (AWS, GCP, Azure, S3, BigQuery, Redshift, Vertex AI)
+
+RULES:
+1. Extract only explicitly mentioned skills — never infer or hallucinate.
+2. Normalize names: use canonical forms (e.g. 'PyTorch' not 'pytorch', 'scikit-learn' not 'sklearn').
+3. Do NOT put the same skill in multiple categories.
+4. Do NOT include soft skills, job titles, or domain knowledge (e.g. 'communication', 'finance', 'leadership').
+5. Do NOT include vague phrases (e.g. 'data-driven', 'best practices', 'strong analytical skills').
+6. If a category has no skills in the text, return an empty list — never omit the key.
 """.strip()
 
 VAL_SYSTEM_PROMPT = """
-You are an NLP QA Auditor. Check spaCy patterns for:
-1. Logic: Multi-word skills MUST be token lists, not single strings.
-2. Schema: Only use allowed spaCy keys (LOWER, LEMMA, OP, etc.).
-3. Accuracy: Ensure the label matches the skill category.
-If invalid, list specific technical corrections.
+You are a strict NLP QA Auditor validating list of skills.
+
+CHECK FOR:
+1. Miscategorization: Is each skill in the correct category?
+   - SQL → languages, NOT tools
+   - Docker → tools, NOT frameworks
+   - Scikit-learn → frameworks, NOT tools
+   - AWS → cloud_platforms, NOT tools
+
+2. Hallucination: Are all skills explicitly present in the original text?
+   Flag any skill not found verbatim or by clear implication.
+
+3. Noise: Flag any non-technical entries such as:
+   - Soft skills (e.g. 'communication', 'teamwork')
+   - Vague phrases (e.g. 'data-driven solutions', 'best practices')
+   - Job responsibilities (e.g. 'build dashboards', 'manage pipelines')
+
+4. Duplicates: Flag skills appearing in more than one category list.
+
+5. Normalization: Flag non-canonical names (e.g. 'sklearn' should be 'scikit-learn', 'tf' should be 'TensorFlow').
+
+Respond with is_valid=True only if ALL checks pass with zero issues.
+If invalid, list each issue as a specific, actionable correction string.
 """.strip()
 
 # --- 3. Core Logic ---
@@ -52,15 +83,12 @@ logger = logging.getLogger(__name__)
 
 def refinement_loop(gen_llm: LLMClient, val_llm: LLMClient, raw_skills_text: str):
   """Circular refinement: Generate -> Validate -> Correct."""
-  max_retries = 2
+  max_retries = 3
   attempt = 0
   
   # Step 1: Initial Generation
   logger.info("🎨 Generating initial patterns...")
   current_output = generate_structured_response(gen_llm, raw_skills_text)
-  print(current_output.model_dump_json())
-  from sys import exit
-  exit()
 
   while attempt < max_retries:
     # Step 2: Validation
@@ -87,7 +115,7 @@ def refinement_loop(gen_llm: LLMClient, val_llm: LLMClient, raw_skills_text: str
 def main():
   setup_logging()
   input_file = project_root / "data" / "raw_skills.json"
-  output_file = project_root / "data" / "skills.jsonl"
+  output_file = project_root / "data" / "skills.json"
 
   if not input_file.exists():
     logger.error("No input data found.")
@@ -115,14 +143,14 @@ def main():
     prompt_key="p_val"
   )
 
-  raw_skills = json.dumps(raw_data.get("data", [])[:2])  
+  raw_skills = json.dumps(raw_data.get("data", []))  
   final_patterns = refinement_loop(gen_llm, val_llm, raw_skills)
 
-  with open(output_file, "w") as f:
-    for p in final_patterns.patterns:
-      f.write(json.dumps(p.model_dump(exclude_none=True)) + "\n")
+  final_data = final_patterns.model_dump()
+  with open(output_file, "w", encoding="utf-8") as f:
+    json.dump(final_data, f, indent=2, ensure_ascii=False)
 
-  logger.info(f"🚀 Successfully saved patterns to {output_file}")
+  logger.info(f"🚀 Successfully saved validated skills to {output_file}")
 
 if __name__ == "__main__":
   main()
