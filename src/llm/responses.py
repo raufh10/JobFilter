@@ -21,17 +21,29 @@ def generate_structured_response(llm: LLMClient, user_input: str):
   """
 
   cleaned_input = clean_text(user_input)
+  
+  if not cleaned_input:
+    return None
 
-  response = llm.client.responses.parse(
+  json_schema = llm.format_schema.model_json_schema()
+
+  response = llm.client.responses.create(
     model=llm.model,
     input=[
       {"role": "system", "content": llm.system_prompt},
       {"role": "user", "content": cleaned_input},
     ],
-    text_format=llm.format_schema,
+    text={
+      "format": {
+        "type": "json_schema",
+        "name": "llm.name",
+        "schema": json_schema,
+        "strict": True
+      }
+    },
     prompt_cache_key=llm.prompt_key,
     prompt_cache_retention="in-memory",
-    service_tier="flex",
+    service_tier="flex"
   )
 
-  return response.output_parsed
+  return llm.format_schema.model_validate_json(response.output_text)

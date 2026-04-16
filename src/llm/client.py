@@ -13,6 +13,7 @@ class LLMClient(BaseModel):
   # Input parameters
   api_key: str = Field(exclude=True) 
   model: str
+  name: str
   system_prompt: str
   format_schema: Type[BaseModel]
   prompt_key: str

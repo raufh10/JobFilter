@@ -11,6 +11,9 @@ class Settings(BaseSettings):
   environment: str
   debug: bool = True
 
+  # Credentials
+  openai_api_key: str
+
   @property
   def is_production(self) -> bool:
     return self.environment == "production"
