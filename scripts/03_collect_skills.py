@@ -67,12 +67,15 @@ logger = logging.getLogger(__name__)
 
 def refinement_loop(gen_llm: LLMClient, val_llm: LLMClient, raw_skills_text: str):
   """Circular refinement: Generate -> Validate -> Correct."""
-  max_retries = 3
+  max_retries = 2
   attempt = 0
   
   # Step 1: Initial Generation
   logger.info("🎨 Generating initial patterns...")
   current_output = generate_structured_response(gen_llm, raw_skills_text)
+  print(current_output.model_dump_json())
+  from sys import exit
+  exit()
 
   while attempt < max_retries:
     # Step 2: Validation

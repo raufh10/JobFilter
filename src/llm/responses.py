@@ -15,6 +15,25 @@ def clean_text(text: str) -> str:
   text = re.sub(r'\s+', ' ', text)
   return text.strip()
 
+def get_openai_compatible_schema(model) -> dict:
+  """
+  Recursively ensures all objects have every property key in 'required'
+  and strips 'default' keys — both required for OpenAI strict json_schema.
+  """
+  def fix(obj: dict) -> dict:
+    if isinstance(obj, dict):
+      obj.pop("default", None)
+      if "properties" in obj:
+        obj["required"] = list(obj["properties"].keys())
+      for value in obj.values():
+        fix(value)
+    elif isinstance(obj, list):
+      for item in obj:
+        fix(item)
+    return obj
+
+  return fix(model.model_json_schema())
+
 def generate_structured_response(llm: LLMClient, user_input: str):
   """
   Cleans input and generates a structured response using responses.parse API.
@@ -25,7 +44,7 @@ def generate_structured_response(llm: LLMClient, user_input: str):
   if not cleaned_input:
     return None
 
-  json_schema = llm.format_schema.model_json_schema()
+  json_schema = get_openai_compatible_schema(llm.format_schema)
 
   response = llm.client.responses.create(
     model=llm.model,
