@@ -113,10 +113,20 @@ def refinement_loop(gen_llm: LLMClient, val_llm: LLMClient, raw_skills_text: str
   logger.error("🛑 Max retries reached. Returning best effort.")
   return current_output
 
-def main():
+def main(
+  input_path_override: dict = {
+    "path": "None",
+    "filename": "raw_skills.json"
+  },
+  output_path_override: dict = {
+    "path": "None",
+    "filename": "skills.json"
+  }
+):
+
   setup_logging()
-  input_file = project_root / "data" / "raw_skills.json"
-  output_file = project_root / "data" / "skills.json"
+  input_file = get_file(project_root, input_path_override)
+  output_file = get_file(project_root, output_path_override)
 
   if not input_file.exists():
     logger.error("No input data found.")
@@ -148,6 +158,7 @@ def main():
   final_patterns = refinement_loop(gen_llm, val_llm, raw_skills)
 
   final_data = final_patterns.model_dump()
+  output_file.parent.mkdir(parents=True, exist_ok=True)
   with open(output_file, "w", encoding="utf-8") as f:
     json.dump(final_data, f, indent=2, ensure_ascii=False)
 
