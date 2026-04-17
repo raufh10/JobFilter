@@ -47,7 +47,7 @@ def main(
     logger.info(f"🔍 After filtering, {len(results.jobs)} jobs remain.")
 
     # 5. Define output path
-    output_file = get_output_file(project_root, path_override)
+    output_file = get_file(project_root, path_override)
     
     # 6. Save to JSON including the token counts for LLM readiness
     output_file.parent.mkdir(parents=True, exist_ok=True)

@@ -63,11 +63,21 @@ def process_single_job(job: dict, llm: LLMClient) -> dict | None:
     logger.error(f"  ⚠️ Failed job {job_id}: {e}")
     return None
 
-def main():
+def main(
+  input_path_override: dict = {
+    "path": "None",
+    "filename": "raw_data.json"
+  },
+  output_path_override: dict = {
+    "path": "None",
+    "filename": "raw_skills.json"
+  }
+):
+
   setup_logging()
-  
-  input_file = project_root / "data" / "raw_data.json"
-  output_file = project_root / "data" / "raw_skills.json"
+
+  input_file = get_file(project_root, input_path_override)
+  output_file = get_file(project_root, output_path_override)
 
   if not input_file.exists():
     logger.error(f"❌ Input file not found: {input_file}")
