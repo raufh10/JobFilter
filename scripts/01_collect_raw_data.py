@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 def main(
   overrides: dict = None,
   path_override: dict = {
-    "path": "None",
+    "path": None,
     "filename": "raw_data.json"
   }
 ):

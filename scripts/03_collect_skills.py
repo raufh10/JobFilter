@@ -22,7 +22,6 @@ class SkillExtraction(BaseModel):
   languages: list[str] = Field(description="Programming languages like Python, R, SQL, Julia.")
   tools: list[str] = Field(description="Software/platforms like Tableau, PowerBI, Docker, Git, Airflow.")
   frameworks: list[str] = Field(description="Libraries or frameworks like PyTorch, TensorFlow, Scikit-learn, Spark.")
-  techniques: list[str] = Field(description="Methodologies like A/B Testing, Regression, Deep Learning, ETL.")
   cloud_platforms: list[str] = Field(description="Cloud services like AWS, GCP, Azure and specific services like S3, BigQuery.")
 
 class SkillExtractionValidator(BaseModel):
@@ -32,6 +31,11 @@ class SkillExtractionValidator(BaseModel):
 
 # --- 2. Prompts ---
 
+"""
+techniques: list[str] = Field(description="Methodologies like A/B Testing, Regression, Deep Learning, ETL.")
+- techniques: Methodologies and analytical approaches (A/B Testing, Regression, ETL, Deep Learning, Feature Engineering)
+"""
+
 GEN_SYSTEM_PROMPT = """
 You are a Senior Technical Recruiter.
 Consolidate technical skills from text and categorize them strictly.
@@ -40,7 +44,6 @@ CATEGORIES:
 - languages: Programming/query languages only (Python, R, SQL, Scala, Julia, Bash)
 - tools: Named software, platforms, or products (Tableau, PowerBI, Docker, Git, Airflow, Jira, Looker)
 - frameworks: Libraries and ML/data frameworks (PyTorch, TensorFlow, Scikit-learn, Spark, Pandas, dbt)
-- techniques: Methodologies and analytical approaches (A/B Testing, Regression, ETL, Deep Learning, Feature Engineering)
 - cloud_platforms: Cloud providers AND their specific services (AWS, GCP, Azure, S3, BigQuery, Redshift, Vertex AI)
 
 RULES:
@@ -115,11 +118,11 @@ def refinement_loop(gen_llm: LLMClient, val_llm: LLMClient, raw_skills_text: str
 
 def main(
   input_path_override: dict = {
-    "path": "None",
+    "path": None,
     "filename": "raw_skills.json"
   },
   output_path_override: dict = {
-    "path": "None",
+    "path": None,
     "filename": "skills.json"
   }
 ):
