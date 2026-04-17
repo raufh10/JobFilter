@@ -14,6 +14,8 @@ from src.common import setup_logging, settings
 from src.tiktoken import TokenCounter
 from scripts.utils import get_file
 
+#techniques: list[str] = Field(description="Methodologies like A/B Testing, Regression, Deep Learning, ETL.")
+
 # 1. Skill Extraction Schema
 class SkillExtraction(BaseModel):
   model_config = ConfigDict(extra='forbid')
@@ -21,7 +23,6 @@ class SkillExtraction(BaseModel):
   languages: list[str] = Field(description="Programming languages like Python, R, SQL, Julia.")
   tools: list[str] = Field(description="Software/platforms like Tableau, PowerBI, Docker, Git, Airflow.")
   frameworks: list[str] = Field(description="Libraries or frameworks like PyTorch, TensorFlow, Scikit-learn, Spark.")
-  #techniques: list[str] = Field(description="Methodologies like A/B Testing, Regression, Deep Learning, ETL.")
   cloud_platforms: list[str] = Field(description="Cloud services like AWS, GCP, Azure and specific services like S3, BigQuery.")
 
 # 2. Model & Prompt
