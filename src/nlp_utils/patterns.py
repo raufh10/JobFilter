@@ -16,14 +16,16 @@ class EntityPatterns(BaseModel):
     path = Path(file_path)
     if not path.exists():
       raise FileNotFoundError(f"Pattern file not found at: {path}")
-      
-    with path.open("r", encoding="utf-8") as f:
-      data = json.load(f)
-      if isinstance(data, list):
-        return cls(rules=data)
 
-      rules_data = data.get("rules") or data.get("patterns") or data
-      return cls(rules=rules_data)
+    rules_data = []
+    with path.open("r", encoding="utf-8") as f:
+      for line in f:
+        line = line.strip()
+        if not line:
+          continue
+        rules_data.append(json.loads(line))
+        
+    return cls(rules=rules_data)
 
 def extract_patterns_to_flat_list(entity_patterns: EntityPatterns) -> List[str]:
   """

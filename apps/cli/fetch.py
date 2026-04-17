@@ -5,12 +5,12 @@ from rich.console import Console
 from rich.table import Table
 
 # --- Path Fixing ---
-project_root = Path(__file__).resolve().parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(project_root))
 
 from src.jobspy.fetch import fetch_jobs, JobResponse
-from src.spacy.matcher import SpacyMatcher
-from src.spacy.patterns import EntityPatterns
+from src.nlp_utils.matcher import SpacyMatcher
+from src.nlp_utils.patterns import EntityPatterns
 
 # Import CLI specific models
 from apps.cli.roles import Role, Roles

@@ -2,8 +2,8 @@ import spacy
 from typing import List, Any, Union
 from pydantic import BaseModel, ConfigDict
 
-from src.spacy.patterns import EntityPattern, EntityPatterns
-from src.spacy.models import ExtractedEntity
+from src.nlp_utils.patterns import EntityPattern, EntityPatterns
+from src.nlp_utils.models import ExtractedEntity
 
 class SpacyMatcher(BaseModel):
   model_config = ConfigDict(arbitrary_types_allowed=True)
