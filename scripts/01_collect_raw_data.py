@@ -7,10 +7,18 @@ sys.path.append(str(project_root))
 
 from src.jobspy import JobSpyClient, fetch_jobs
 from src.common import setup_logging
+from scripts.utils import get_file
 
 logger = logging.getLogger(__name__)
 
-def main(overrides: dict = None):
+def main(
+  overrides: dict = None,
+  path_override: dict = {
+    "path": "None",
+    "filename": "raw_data.json"
+  }
+):
+
   # 1. Initialize logging system
   setup_logging()
 
@@ -39,9 +47,10 @@ def main(overrides: dict = None):
     logger.info(f"🔍 After filtering, {len(results.jobs)} jobs remain.")
 
     # 5. Define output path
-    output_file = project_root / "data" / "raw_data.json"
+    output_file = get_output_file(project_root, path_override)
     
     # 6. Save to JSON including the token counts for LLM readiness
+    output_file.parent.mkdir(parents=True, exist_ok=True)
     results.to_json(output_file, include_tokens=True)
 
     logger.info(f"✅ Successfully processed and saved data.")

@@ -12,6 +12,7 @@ sys.path.append(str(project_root))
 from src.llm import LLMClient, generate_structured_response
 from src.common import setup_logging, settings
 from src.tiktoken import TokenCounter
+from scripts.utils import get_file
 
 # 1. Skill Extraction Schema
 class SkillExtraction(BaseModel):
