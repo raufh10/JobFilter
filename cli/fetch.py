@@ -70,7 +70,6 @@ class JobScorer:
       if score >= self.min_score:
         scored_results.append({
           "title": job.title,
-          "company": job.company_name or "N/A",
           "score": round(score, 1),
           "matches": list(matches),
           "url": job.job_url
@@ -92,7 +91,7 @@ class JobScorer:
 
     table.add_column("Score", justify="right", style="green")
     table.add_column("Job Title", style="cyan")
-    table.add_column("Company", style="white")
+    table.add_column("URL", style="white")
     table.add_column("Top Matches", style="dim")
 
     for item in results[:15]:
@@ -100,7 +99,7 @@ class JobScorer:
       table.add_row(
         f"{item['score']}%",
         item['title'],
-        item['company'],
+        item['url'],
         match_str if match_str else "[dim]no matches[/dim]"
       )
 
