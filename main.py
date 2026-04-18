@@ -6,6 +6,7 @@ from src.common import settings
 from src.llm import LLMClient
 from src.jobspy import JobSpyClient
 from src.engine import Resume, Roles, Role, run_fetch
+from src.engine.scores import JobMatchScore, SCORING_SYSTEM_PROMPT
 
 app = typer.Typer(help="Job Filter CLI: Manage resume and fetch scored jobs via LLM.")
 console = Console()
@@ -14,9 +15,10 @@ console = Console()
 def get_llm_client():
   return LLMClient(
     api_key=settings.openai_api_key,
-    model="gpt-4o-mini", # Standard model for scoring
-    name="cli_engine",
-    system_prompt="Initial prompt", # Will be overridden in fetch.py
+    model="gpt-5.4-nano",
+    name="job_scoring_engine",
+    system_prompt=SCORING_SYSTEM_PROMPT,
+    format_schema=JobMatchScore,
     prompt_key="job_scoring_v1"
   )
 

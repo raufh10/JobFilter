@@ -16,11 +16,6 @@ class JobScorer:
     self.resume = resume
     self.llm_client = llm_client
     self.min_score = min_score
-    
-    # Configure LLM Client for this specific task
-    self.llm_client.system_prompt = SCORING_SYSTEM_PROMPT
-    self.llm_client.format_schema = JobMatchScore
-    self.llm_client.name = "job_scoring_engine"
 
   def run(self):
     """Main execution flow: Fetch -> LLM Score -> Filter -> Display."""
@@ -108,4 +103,3 @@ def run_fetch(role_name: str, llm_client: LLMClient, min_score: float = 50.0):
 
   scorer = JobScorer(role, resume, llm_client, min_score=min_score)
   scorer.run()
-
