@@ -1,6 +1,17 @@
+import re
+import httpx
 import tiktoken
 import pandas as pd
+from typing import List
+from pydantic import BaseModel, Field
 from jobspy import scrape_jobs
+
+from src.common import settings
+from src.llm.client import LLMClient
+from src.llm.responses import generate_structured_response
+
+class RelevantIndices(BaseModel):
+  indices: List[int] = Field(description="List of sentence indices relevant to job requirements or responsibilities.")
 
 def filter_jobs(df: pd.DataFrame, search_term: str) -> pd.DataFrame:
   term = search_term.lower()
@@ -10,80 +21,95 @@ def filter_jobs(df: pd.DataFrame, search_term: str) -> pd.DataFrame:
   )
   return df[mask].copy()
 
-def count_tokens(text, encoding):
-  if not isinstance(text, str) or not text:
-    return 0
-  return len(encoding.encode(text))
+def split_sentences(text: str) -> List[str]:
+  if not text: return []
+  # Splits on punctuation followed by space, removing empty strings
+  sentences = [s.strip() for s in re.split(r'(?<=[.!?]) +', text) if s.strip()]
+  return sentences
+
+def process_relevance(llm: LLMClient, description: str) -> str:
+  sentences = split_sentences(description)
+  if not sentences: return ""
+  
+  indexed_input = "\n".join([f"[{i}] {s}" for i, s in enumerate(sentences)])
+  
+  try:
+    result = generate_structured_response(llm, indexed_input)
+    print(result)
+    from sys import exit
+    exit()
+    filtered = [sentences[i] for i in result.indices if i < len(sentences)]
+    return " ".join(filtered)
+  except Exception as e:
+    print(f"Error: {e}")
+    return description
 
 def main(roles: list[str]):
-  all_processed_jobs = []
-  role_stats = {}
 
-  # Tiktoken setup for GPT-5.4-nano (o200k_base)
+  # Initialize LLM Client
+  llm = LLMClient(
+    api_key=settings.openai_api_key,
+    model="gpt-5.4-nano",
+    name="RelevanceFilter",
+    system_prompt="Return only the indices of sentences describing technical requirements, skills, or job responsibilities.",
+    format_schema=RelevantIndices,
+    prompt_key="jakarta_job_refiner"
+  )
+
   try:
     encoding = tiktoken.encoding_for_model("gpt-5.4-nano")
   except KeyError:
     encoding = tiktoken.get_encoding("o200k_base")
 
+  all_jobs = []
+
   for role in roles:
     print(f"--- Scraping Indeed Jakarta for: {role} ---")
-    
-    # 1. Scrape Jobs (90 days / 500 results)
     jobs_df = scrape_jobs(
       site_name=["indeed"],
       search_term=role,
       location="Jakarta, Indonesia",
       results_wanted=500,
       hours_old=2160, 
-      country_indeed='Indonesia',
+      country_indeed='indonesia',
     )
 
-    # 2. Apply Custom Filter
     filtered_jobs = filter_jobs(jobs_df, role)
 
     if not filtered_jobs.empty:
-      # 3. Process Tokens
-      filtered_jobs['description_tokens'] = filtered_jobs['description'].apply(
-        lambda x: count_tokens(x, encoding)
+      print(f"Refining {len(filtered_jobs)} job descriptions...")
+      
+      # Process each description: Split -> LLM Filter Indices -> Reassemble
+      filtered_jobs['refined_description'] = filtered_jobs['description'].apply(
+        lambda x: process_relevance(llm, x)
       )
       
-      # Track for specific role reporting
-      role_stats[role] = {
-        'count': len(filtered_jobs),
-        'total_tokens': filtered_jobs['description_tokens'].sum(),
-        'avg_tokens': filtered_jobs['description_tokens'].mean()
-      }
-      
-      all_processed_jobs.append(filtered_jobs)
+      # Calculate tokens for the refined version
+      filtered_jobs['description_tokens'] = filtered_jobs['refined_description'].apply(
+        lambda x: len(encoding.encode(x)) if x else 0
+      )
+
+      all_jobs.append(filtered_jobs)
     else:
       print(f"No results for '{role}'.")
 
-  # 4. Generate General and Specific Reports
-  if all_processed_jobs:
-    general_df = pd.concat(all_processed_jobs).drop_duplicates(subset=['job_url'])
-    
-    print("\n" + "="*40)
-    print("SPECIFIC ROLE DATA (GPT-5.4-NANO)")
-    print("="*40)
-    for role, stats in role_stats.items():
-      print(f"Role: {role.upper()}")
-      print(f"  - Jobs Found: {stats['count']}")
-      print(f"  - Total Tokens: {stats['total_tokens']}")
-      print(f"  - Avg Tokens/Job: {stats['avg_tokens']:.1f}")
-      print("-" * 20)
+  # 4. Final Reporting
+  if all_jobs:
+    general_df = pd.concat(all_jobs).drop_duplicates(subset=['job_url'])
 
     print("\n" + "="*40)
-    print("GENERAL SUMMARY (DEDUPLICATED)")
+    print("GENERAL SUMMARY (REFINED VIA GPT-5.4-NANO)")
     print("="*40)
     print(f"Total Unique Jobs: {len(general_df)}")
-    print(f"Total Combined Tokens: {general_df['description_tokens'].sum()}")
-    print(f"Average Token Count: {general_df['description_tokens'].mean():.1f}")
-    
-    print("\nTop 5 Largest Descriptions (by token count):")
+    print(f"Total Refined Tokens: {general_df['description_tokens'].sum()}")
+    print(f"Average Refined Tokens: {general_df['description_tokens'].mean():.1f}")
+
+    print("\nTop 5 Most Content-Heavy Roles (Refined):")
     print(general_df[['company', 'title', 'description_tokens']].sort_values(by='description_tokens', ascending=False).head(5).to_string(index=False))
   else:
-    print("No jobs found across all roles.")
+    print("No jobs found.")
 
 if __name__ == "__main__":
   target_roles = ["software engineer", "data engineer", "devops", "data analyst", "ai engineer"]
+  target_roles = ["ai engineer"]
   main(roles=target_roles)
