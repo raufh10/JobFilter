@@ -1,111 +1,98 @@
-import sys
-import json
-from pathlib import Path
 from rich.console import Console
 from rich.table import Table
+from rich.progress import Progress, SpinnerColumn, TextColumn
 
-# --- Path Fixing ---
-project_root = Path(__file__).resolve().parent.parent.parent
-sys.path.append(str(project_root))
-
-from src.jobspy.fetch import fetch_jobs, JobResponse
-from src.nlp_utils.matcher import SpacyMatcher
-from src.nlp_utils.patterns import EntityPatterns
-
-# Import CLI specific models
-from apps.cli.roles import Role, Roles
-from apps.cli.resume import Resume
+from src.jobspy import fetch_jobs, JobResponse
+from src.llm import LLMClient, generate_structured_response
+from src.engine.scores import JobMatchScore, SCORING_SYSTEM_PROMPT
+from src.engine.roles import Role, Roles
+from src.engine.resume import Resume
 
 console = Console()
 
 class JobScorer:
-  def __init__(self, role: Role, resume: Resume, min_score: float = 0.0):
+  def __init__(self, role: Role, resume: Resume, llm_client: LLMClient, min_score: float = 0.0):
     self.role = role
     self.resume = resume
+    self.llm_client = llm_client
     self.min_score = min_score
-    self.matcher = self._setup_matcher()
     
-    # Flatten resume skills into a unique lowercase set
-    self.resume_skills = set(
-      s.lower() for s in (
-        self.resume.languages + 
-        self.resume.tools + 
-        self.resume.frameworks + 
-        self.resume.cloud_platforms
-      )
-    )
-
-  def _setup_matcher(self) -> SpacyMatcher:
-    """Initializes SpacyMatcher and loads the role's patterns."""
-    matcher = SpacyMatcher()
-    
-    try:
-      patterns = EntityPatterns.from_json(self.role.spacy_path)
-      matcher.add_rules(patterns)
-    except Exception as e:
-      console.print(f"[yellow]Warning: Could not load patterns: {e}[/yellow]")
-      
-    return matcher
+    # Configure LLM Client for this specific task
+    self.llm_client.system_prompt = SCORING_SYSTEM_PROMPT
+    self.llm_client.format_schema = JobMatchScore
+    self.llm_client.name = "job_scoring_engine"
 
   def run(self):
-    """Main execution flow: Fetch -> Extract -> Score -> Filter -> Display."""
+    """Main execution flow: Fetch -> LLM Score -> Filter -> Display."""
+    # 1. Fetch Jobs
     response: JobResponse = fetch_jobs(self.role.client)
-    
+
     if not response.jobs:
       console.print("[yellow]No jobs found matching the criteria.[/yellow]")
       return
 
     scored_results = []
-    for job in response.jobs:
-      extracted = self.matcher.process_text(job.description or "")
-      found_skills = {e.text.lower() for e in extracted}
+    
+    # 2. Score jobs using LLM with a progress bar
+    with Progress(
+      SpinnerColumn(),
+      TextColumn("[progress.description]{task.description}"),
+      console=console
+    ) as progress:
+      task = progress.add_task(f"[cyan]Scoring {len(response.jobs)} jobs...", total=len(response.jobs))
       
-      matches = found_skills.intersection(self.resume_skills)
-      
-      score = 0.0
-      if found_skills:
-        score = (len(matches) / len(found_skills)) * 100
-
-      # Apply the score threshold filter
-      if score >= self.min_score:
-        scored_results.append({
-          "title": job.title,
-          "score": round(score, 1),
-          "matches": list(matches),
-          "url": job.job_url
-        })
+      for job in response.jobs:
+        try:
+          # Construct input combining job description and candidate resume
+          user_input = f"RESUME:\n{self.resume.content}\n\nJOB DESCRIPTION:\n{job.description}"
+          
+          # Call structured LLM response
+          scored_data: JobMatchScore = generate_structured_response(self.llm_client, user_input)
+          
+          if scored_data and scored_data.score >= self.min_score:
+            scored_results.append({
+              "title": job.title,
+              "score": scored_data.score,
+              "matches": scored_data.matched_skills,
+              "explanation": scored_data.explanation,
+              "url": job.job_url
+            })
+        except Exception as e:
+          console.print(f"[dim red]Failed to score job '{job.title}': {e}[/dim red]")
+        
+        progress.advance(task)
 
     if not scored_results:
       console.print(f"[yellow]No jobs met the minimum score of {self.min_score}%.[/yellow]")
       return
 
+    # 3. Sort and Display
     scored_results.sort(key=lambda x: x['score'], reverse=True)
     self._display_table(scored_results)
 
   def _display_table(self, results: list):
     """Renders results in a formatted Rich table."""
     table = Table(
-      title=f"Matched Jobs for {self.role.name} (Min Score: {self.min_score}%)", 
-      header_style="bold magenta"
+      title=f"Scored Jobs for {self.role.name} (Min: {self.min_score}%)", 
+      header_style="bold magenta",
+      show_lines=True
     )
 
     table.add_column("Score", justify="right", style="green")
-    table.add_column("Job Title", style="cyan")
-    table.add_column("URL", style="white")
-    table.add_column("Top Matches", style="dim")
+    table.add_column("Job Details", style="cyan")
+    table.add_column("Match Logic", style="white")
 
     for item in results[:15]:
       match_str = ", ".join(item['matches'][:5])
       table.add_row(
-        f"{item['score']}%",
-        item['title'],
-        item['url'],
-        match_str if match_str else "[dim]no matches[/dim]"
+        f"[bold]{item['score']}%[/bold]",
+        f"{item['title']}\n[dim]{item['url']}[/dim]",
+        f"[italic]'{item['explanation']}'[/italic]\n[dim]Skills: {match_str}[/dim]"
       )
 
     console.print(table)
 
-def run_fetch(role_name: str, min_score: float = 50.0):
+def run_fetch(role_name: str, llm_client: LLMClient, min_score: float = 50.0):
   """CLI entry point to execute the fetch command."""
   roles_store = Roles.load()
   role = roles_store.get_role(role_name)
@@ -115,5 +102,10 @@ def run_fetch(role_name: str, min_score: float = 50.0):
     console.print(f"[red]Error: Role '{role_name}' not found.[/red]")
     return
 
-  scorer = JobScorer(role, resume, min_score=min_score)
+  if not resume.content:
+    console.print("[red]Error: Resume content is empty. Add your resume first.[/red]")
+    return
+
+  scorer = JobScorer(role, resume, llm_client, min_score=min_score)
   scorer.run()
+
