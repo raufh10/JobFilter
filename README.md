@@ -1,6 +1,6 @@
-# job_filter
+# JobFilter
 
-A professional monorepo CLI tool to fetch, score, and filter job listings using **JobSpy** and **LLM-driven rubric analysis**.
+A CLI tool to fetch, score, and filter job listings using **JobSpy** and **LLM-driven rubric analysis**.
 
 ---
 
@@ -74,18 +74,13 @@ python3 main.py fetch "Data Analyst" --min-score 70
 
 ```text
 job_filter/
-├── apps/
-│   └── cli/                # CLI logic and modules
-│       ├── fetch.py        # Scoring & Fetch logic
-│       ├── roles.py        # Role persistence logic
-│       └── resume.py       # Resume data models
+│
 ├── src/
 │   ├── common/             # Global settings & config
 │   ├── engine/             # Scoring rubrics & prompts
 │   ├── jobspy/             # Scraper wrapper & models
 │   └── llm/                # Structured LLM response logic
-├── data/
-│   └── cli/                # Local JSON storage (resume, roles)
+│
 ├── main.py                 # Primary CLI entry point
 ├── pyproject.toml          # PEP 621 configuration
 └── README.md
@@ -109,8 +104,7 @@ The tool uses a strictly defined LLM rubric:
 ## 📦 Requirements
 
 - **Python 3.11+**
-- **JobSpy**: Multi-board scraping
+- **JobSpy**: Jobs scraping
 - **Pydantic v2**: Data validation & Settings
-- **Typer & Rich**: Professional CLI UI
-- **OpenAI API**: For rubric-based scoring
-
+- **Typer & Rich**: CLI UI
+- **HTTPX**: LLM inference (rubric-based scoring)
