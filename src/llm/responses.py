@@ -38,31 +38,35 @@ def generate_structured_response(llm: LLMClient, user_input: str):
   """
   Cleans input and generates a structured response using responses.parse API.
   """
-
   cleaned_input = clean_text(user_input)
-  
+
   if not cleaned_input:
     return None
 
   json_schema = get_openai_compatible_schema(llm.format_schema)
 
-  response = llm.client.responses.create(
-    model=llm.model,
-    input=[
-      {"role": "system", "content": llm.system_prompt},
-      {"role": "user", "content": cleaned_input},
-    ],
-    text={
-      "format": {
-        "type": "json_schema",
-        "name": llm.name,
-        "schema": json_schema,
-        "strict": True
-      }
-    },
-    prompt_cache_key=llm.prompt_key,
-    prompt_cache_retention="in_memory",
-    service_tier="flex"
+  response = llm.client.post(
+    llm.base_url,
+    json={
+      "model": llm.model,
+      "input": [
+        {"role": "system", "content": llm.system_prompt},
+        {"role": "user", "content": cleaned_input},
+      ],
+      "text": {
+        "format": {
+          "type": "json_schema",
+          "name": llm.name,
+          "schema": json_schema,
+          "strict": True
+        }
+      },
+      "prompt_cache_key": llm.prompt_key,
+      "prompt_cache_retention": "in_memory",
+      "service_tier": "flex"
+    }
   )
-
-  return llm.format_schema.model_validate_json(response.output_text)
+  response.raise_for_status()
+  
+  output_text = response.json().get("output_text")
+  return llm.format_schema.model_validate_json(output_text)
