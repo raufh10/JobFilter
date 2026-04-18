@@ -10,6 +10,25 @@ from src.common import settings
 from src.llm.client import LLMClient
 from src.llm.responses import generate_structured_response
 
+system_prompt = """
+You are a technical recruiting assistant specializing in the Jakarta tech market. 
+Your task is to identify sentence indices that contain CORE information.
+
+CORE INFORMATION includes:
+- Technical skills (Python, Go, React, SQL, etc.)
+- Years of experience or education requirements.
+- Daily responsibilities (Building APIs, managing teams, designing UI).
+- Soft skills explicitly required for the role.
+
+EXCLUDE:
+- Company history/vision ("We were founded in 2010...").
+- Benefits ("Free lunch", "Insurance", "Gym").
+- Generic statements ("We are a great place to work").
+- Legal boilerplate ("Equal opportunity employer").
+
+Return the indices in the order they appear in the text.
+"""
+
 class RelevantIndices(BaseModel):
   indices: List[int] = Field(description="List of sentence indices relevant to job requirements or responsibilities.")
 
@@ -23,7 +42,6 @@ def filter_jobs(df: pd.DataFrame, search_term: str) -> pd.DataFrame:
 
 def split_sentences(text: str) -> List[str]:
   if not text: return []
-  # Splits on punctuation followed by space, removing empty strings
   sentences = [s.strip() for s in re.split(r'(?<=[.!?]) +', text) if s.strip()]
   return sentences
 
@@ -35,9 +53,6 @@ def process_relevance(llm: LLMClient, description: str) -> str:
   
   try:
     result = generate_structured_response(llm, indexed_input)
-    print(result)
-    from sys import exit
-    exit()
     filtered = [sentences[i] for i in result.indices if i < len(sentences)]
     return " ".join(filtered)
   except Exception as e:
@@ -51,7 +66,7 @@ def main(roles: list[str]):
     api_key=settings.openai_api_key,
     model="gpt-5.4-nano",
     name="RelevanceFilter",
-    system_prompt="Return only the indices of sentences describing technical requirements, skills, or job responsibilities.",
+    system_prompt=system_prompt,
     format_schema=RelevantIndices,
     prompt_key="jakarta_job_refiner"
   )
@@ -82,8 +97,8 @@ def main(roles: list[str]):
       # Process each description: Split -> LLM Filter Indices -> Reassemble
       filtered_jobs['refined_description'] = filtered_jobs['description'].apply(
         lambda x: process_relevance(llm, x)
-      )
-      
+      )      
+
       # Calculate tokens for the refined version
       filtered_jobs['description_tokens'] = filtered_jobs['refined_description'].apply(
         lambda x: len(encoding.encode(x)) if x else 0

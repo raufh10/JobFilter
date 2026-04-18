@@ -17,15 +17,15 @@ def clean_text(text: str) -> str:
   return text.strip()
 
 def get_openai_compatible_schema(model) -> dict:
-  """
-  Recursively ensures all objects have every property key in 'required'
-  and strips 'default' keys — both required for OpenAI strict json_schema.
-  """
+
   def fix(obj: dict) -> dict:
     if isinstance(obj, dict):
       obj.pop("default", None)
+      
       if "properties" in obj:
         obj["required"] = list(obj["properties"].keys())
+        obj["additionalProperties"] = False
+      
       for value in obj.values():
         fix(value)
     elif isinstance(obj, list):
@@ -76,5 +76,14 @@ def generate_structured_response(llm: LLMClient, user_input: str):
     print(f"Details: {error_details}")
     raise
     
-  output_text = response.json().get("output_text")
+  data = response.json()
+  try:
+    output_content = data["output"][0]["content"]
+    output_text = next(
+      item["text"] for item in output_content 
+      if item["type"] == "output_text"
+    )
+  except (KeyError, IndexError, StopIteration):
+    raise ValueError(f"Could not locate 'output_text' in response path. Body: {data}")
+
   return llm.format_schema.model_validate_json(output_text)
