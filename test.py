@@ -32,10 +32,10 @@ def main(roles: list[str]):
     jobs_df = scrape_jobs(
       site_name=["indeed"],
       search_term=role,
-      #location="Jakarta, Indonesia",
+      location="Jakarta, Indonesia",
       results_wanted=500,
       hours_old=2160, 
-      country_indeed='USA',
+      country_indeed='Indonesia',
     )
 
     # 2. Apply Custom Filter
@@ -85,6 +85,5 @@ def main(roles: list[str]):
     print("No jobs found across all roles.")
 
 if __name__ == "__main__":
-  #target_roles = ["software engineer", "data engineer", "devops", "data analyst", "ai engineer"]
-  target_roles = ["rust"]
+  target_roles = ["software engineer", "data engineer", "devops", "data analyst", "ai engineer"]
   main(roles=target_roles)
