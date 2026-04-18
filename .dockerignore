@@ -10,3 +10,4 @@ tests/
 *.egg-info/
 *.md
 .env.example
+.archive/
