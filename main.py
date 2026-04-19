@@ -86,26 +86,27 @@ def role_add():
 
 @app.command(name="role-list")
 def role_list():
-  """List all configured search roles and their specific filters."""
+  """List all configured search roles with shortcut indices."""
   store = Roles.load()
   if not store.roles:
     console.print("[yellow]No roles configured yet.[/yellow]")
     return
-    
-  for r in store.roles:
+
+  for i, r in enumerate(store.roles, 1):
     c = r.client
     remote_status = "🌐 Remote" if c.remote_only else "📍 On-site/Hybrid"
-    console.print(f"• [bold cyan]{r.name}[/bold cyan]")
-    console.print(f"  [dim]Query: {c.search_term} in {c.location} | {remote_status} | {c.hours_old}h old[/dim]")
+    # Added [index] for the shortcut
+    console.print(f"[bold green][{i}][/bold green] [bold cyan]{r.name}[/bold cyan]")
+    console.print(f"    [dim]Query: {c.search_term} in {c.location} | {remote_status} | {c.hours_old}h old[/dim]")
 
 # --- Main Execution ---
 
 @app.command(name="fetch")
 def fetch(
-  role: str = typer.Argument(..., help="The name of the role to use"),
+  role: str = typer.Argument(..., help="The name or shortcut index of the role to use"),
   score: float = typer.Option(50.0, "--min-score", "-s", help="Minimum match score (0-100)")
 ):
-  """Fetch and score jobs using a specific role and LLM analysis."""
+  """Fetch and score jobs using a specific role (name or #) and LLM analysis."""
   llm_client = get_llm_client()
   try:
     run_fetch(role, llm_client=llm_client, min_score=score)

@@ -87,14 +87,20 @@ class JobScorer:
 
     console.print(table)
 
-def run_fetch(role_name: str, llm_client: LLMClient, min_score: float = 50.0):
-  """CLI entry point to execute the fetch command."""
+def run_fetch(role_identifier: str, llm_client: LLMClient, min_score: float = 50.0):
+  """CLI entry point to execute the fetch command using role name or shortcut index."""
   roles_store = Roles.load()
-  role = roles_store.get_role(role_name)
   resume = Resume.load()
 
+  try:
+    identifier = int(role_identifier)
+  except ValueError:
+    identifier = role_identifier
+
+  role = roles_store.get_role(identifier)
   if not role:
-    console.print(f"[red]Error: Role '{role_name}' not found.[/red]")
+    console.print(f"[red]Error: Role identifier '{role_identifier}' not found.[/red]")
+    roles_store.list_roles() 
     return
 
   if not resume.content:

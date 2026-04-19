@@ -13,6 +13,7 @@ class Settings(BaseSettings):
 
   # Credentials
   openai_api_key: str
+  proxy_url: str
 
   @property
   def is_production(self) -> bool:
