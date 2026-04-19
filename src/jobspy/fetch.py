@@ -40,17 +40,32 @@ class JobResponse(BaseModel):
     
     return cls(jobs=[JobPost(**row) for row in records])
 
-  def filter_by_search_term(self, search_term: str):
+  def filter_by_search_term(self, search_term: str, strictness: str = "medium"):
     """
-    Filters the internal jobs list in-place. 
-    Maintains the JobResponse type.
+    Filters jobs based on strictness level:
+    - high: Title must match search term.
+    - medium: Title OR Description must match.
+    - low: No filtering applied.
     """
     term = search_term.lower()
-    self.jobs = [
-      job for job in self.jobs
-      if (job.title and term in job.title.lower()) or 
-         (job.description and term in job.description.lower())
-    ]
+    strictness = strictness.lower()
+
+    if strictness == "low":
+      return self
+
+    filtered_jobs = []
+    for job in self.jobs:
+      title_match = job.title and term in job.title.lower()
+      desc_match = job.description and term in job.description.lower()
+
+      if strictness == "high":
+        if title_match:
+          filtered_jobs.append(job)
+      elif strictness == "medium":
+        if title_match or desc_match:
+          filtered_jobs.append(job)
+    
+    self.jobs = filtered_jobs
     return self
 
   def to_dataframe(self) -> pd.DataFrame:
@@ -87,10 +102,8 @@ class JobResponse(BaseModel):
 
 def fetch_jobs(config: JobSpyClient) -> JobResponse:
   """
-  Scrapes jobs and returns the JobResponse object as is.
-  Includes proxy configuration if LinkedIn is in the site list.
+  Scrapes jobs and applies filtering based on config strictness.
   """
-
   # Define base arguments
   scrape_kwargs = {
     "site_name": config.site_name,
@@ -102,10 +115,14 @@ def fetch_jobs(config: JobSpyClient) -> JobResponse:
     "remote_only": config.remote_only,
   }
 
-  # Add proxy logic specifically for LinkedIn
+  # Proxy logic for LinkedIn
   if "linkedin" in [s.lower() for s in config.site_name]:
-    proxy_list = [config.proxy_url]
-    scrape_kwargs["proxies"] = proxy_list
+    scrape_kwargs["proxies"] = [config.proxy_url]
 
   raw_jobs_df = scrape_jobs(**scrape_kwargs)
-  return JobResponse.from_dataframe(raw_jobs_df)
+  
+  response = JobResponse.from_dataframe(raw_jobs_df)
+  return response.filter_by_search_term(
+    search_term=config.search_term, 
+    strictness=config.strictness
+  )
