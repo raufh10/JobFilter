@@ -50,7 +50,9 @@ def role_add():
   name = typer.prompt("Role Name (e.g., Data Analyst)")
 
   # Scraper Settings
-  search_term = typer.prompt("Search Term", default=name)
+  search_input = typer.prompt("Search Terms (comma separated)", default=name)
+  search_terms = [t.strip() for t in search_input.split(",")]
+
   location = typer.prompt("Location", default="Indonesia")
 
   sites_input = typer.prompt("Sites (comma separated)", default="indeed")

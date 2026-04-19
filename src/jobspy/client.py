@@ -1,6 +1,6 @@
 from enum import Enum
 from pydantic import BaseModel, model_validator
-from typing import Optional
+from typing import Optional, List
 from src.common import settings
 
 class StrictnessLevel(str, Enum):
@@ -9,8 +9,8 @@ class StrictnessLevel(str, Enum):
   HIGH = "high"
 
 class JobSpyClient(BaseModel):
-  site_name: list[str] = ["indeed"]
-  search_term: str
+  site_name: List[str] = ["indeed"]
+  search_term: List[str]
   location: str
   results_wanted: int = 20
   hours_old: Optional[int] = 48

@@ -3,11 +3,10 @@ import pandas as pd
 
 from pathlib import Path
 from pydantic import BaseModel
-from typing import Optional, Any
+from typing import Optional, Any, List
 from datetime import date
 
 from jobspy import scrape_jobs
-
 from src.jobspy.client import JobSpyClient
 from src.tiktoken import BatchTokenCount, TokenCount, TokenCounter
 
@@ -32,31 +31,39 @@ class JobResponse(BaseModel):
 
   @classmethod
   def from_dataframe(cls, df: pd.DataFrame):
-    """
-    Creates a JobResponse directly from the jobspy DataFrame
-    """
     clean_df = df.where(pd.notnull(df), None)
     records = clean_df.to_dict(orient="records")
-    
     return cls(jobs=[JobPost(**row) for row in records])
 
-  def filter_by_search_term(self, search_term: str, strictness: str = "medium"):
+  def merge(self, other: "JobResponse"):
     """
-    Filters jobs based on strictness level:
-    - high: Title must match search term.
-    - medium: Title OR Description must match.
-    - low: No filtering applied.
+    Merges another JobResponse into this one, removing duplicates based on job_url.
     """
-    term = search_term.lower()
-    strictness = strictness.lower()
+    existing_urls = {job.job_url for job in self.jobs}
+    for job in other.jobs:
+      if job.job_url not in existing_urls:
+        self.jobs.append(job)
+        existing_urls.add(job.job_url)
+    return self
 
+  def filter_by_search_term(self, search_terms: List[str], strictness: str = "medium"):
+    """
+    Filters jobs based on strictness level. 
+    Matches if ANY of the terms in search_terms are found.
+    """
+    strictness = strictness.lower()
     if strictness == "low":
       return self
 
+    terms = [t.lower() for t in search_terms]
     filtered_jobs = []
+
     for job in self.jobs:
-      title_match = job.title and term in job.title.lower()
-      desc_match = job.description and term in job.description.lower()
+      title = (job.title or "").lower()
+      desc = (job.description or "").lower()
+      
+      title_match = any(t in title for t in terms)
+      desc_match = any(t in desc for t in terms)
 
       if strictness == "high":
         if title_match:
@@ -64,7 +71,7 @@ class JobResponse(BaseModel):
       elif strictness == "medium":
         if title_match or desc_match:
           filtered_jobs.append(job)
-    
+
     self.jobs = filtered_jobs
     return self
 
@@ -102,27 +109,36 @@ class JobResponse(BaseModel):
 
 def fetch_jobs(config: JobSpyClient) -> JobResponse:
   """
-  Scrapes jobs and applies filtering based on config strictness.
+  Iterates through all search terms in config, scrapes, merges, and filters.
   """
-  # Define base arguments
-  scrape_kwargs = {
-    "site_name": config.site_name,
-    "search_term": config.search_term,
-    "location": config.location,
-    "results_wanted": config.results_wanted,
-    "hours_old": config.hours_old,
-    "country_indeed": config.country_indeed,
-    "remote_only": config.remote_only,
-  }
+  final_response = JobResponse(jobs=[])
 
-  # Proxy logic for LinkedIn
-  if "linkedin" in [s.lower() for s in config.site_name]:
-    scrape_kwargs["proxies"] = [config.proxy_url]
+  # 1. Loop through each search term
+  for term in config.search_term:
+    scrape_kwargs = {
+      "site_name": config.site_name,
+      "search_term": term,
+      "location": config.location,
+      "results_wanted": config.results_wanted,
+      "hours_old": config.hours_old,
+      "country_indeed": config.country_indeed,
+      "remote_only": config.remote_only,
+    }
 
-  raw_jobs_df = scrape_jobs(**scrape_kwargs)
-  
-  response = JobResponse.from_dataframe(raw_jobs_df)
-  return response.filter_by_search_term(
-    search_term=config.search_term, 
+    if "linkedin" in [s.lower() for s in config.site_name]:
+      scrape_kwargs["proxies"] = [config.proxy_url]
+
+    # 2. Scrape and merge
+    try:
+      raw_jobs_df = scrape_jobs(**scrape_kwargs)
+      current_batch = JobResponse.from_dataframe(raw_jobs_df)
+      final_response.merge(current_batch)
+    except Exception as e:
+      print(f"Error scraping term '{term}': {e}")
+      continue
+
+  # 3. Final Filter using the full list of terms and strictness
+  return final_response.filter_by_search_term(
+    search_terms=config.search_term, 
     strictness=config.strictness
   )
