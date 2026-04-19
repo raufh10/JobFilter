@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Optional
 
 class Settings(BaseSettings):
   model_config = SettingsConfigDict(
@@ -13,7 +14,7 @@ class Settings(BaseSettings):
 
   # Credentials
   openai_api_key: str
-  proxy_url: str
+  proxy_url: Optional[str] = None
 
   @property
   def is_production(self) -> bool:

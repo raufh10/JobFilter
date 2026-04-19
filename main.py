@@ -48,41 +48,57 @@ def resume_show():
 def role_add():
   """Interactively setup a job search role with full JobSpy customization."""
   name = typer.prompt("Role Name (e.g., Data Analyst)")
-  
+
   # Scraper Settings
   search_term = typer.prompt("Search Term", default=name)
   location = typer.prompt("Location", default="Indonesia")
-  
+
   sites_input = typer.prompt("Sites (comma separated)", default="indeed")
-  site_names = [s.strip() for s in sites_input.split(",")]
-  
+  site_names = [s.strip().lower() for s in sites_input.split(",")]
+
   results = typer.prompt("Results wanted", default=20, type=int)
   hours = typer.prompt("Hours old (max age of post)", default=48, type=int)
   remote = typer.confirm("Remote only?", default=False)
+  
+  strictness = typer.prompt(
+    "Scoring Strictness (low, medium, high)", 
+    default="medium"
+  ).lower()
 
   try:
+    # This instantiation triggers the Pydantic model_validator (LinkedIn proxy check)
+    client_config = JobSpyClient(
+      site_name=site_names,
+      search_term=search_term, 
+      location=location, 
+      results_wanted=results,
+      hours_old=hours,
+      remote_only=remote,
+      country_indeed="Indonesia",
+      strictness=strictness
+    )
+
     new_role = Role(
       name=name,
-      client=JobSpyClient(
-        site_name=site_names,
-        search_term=search_term, 
-        location=location, 
-        results_wanted=results,
-        hours_old=hours,
-        remote_only=remote,
-        country_indeed="Indonesia"
-      )
+      client=client_config
     )
-    
+
     store = Roles.load()
     store.add_role(new_role)
     store.save()
-    
-    console.print(f"\n[bold green]✅ Role '{name}' saved with custom config:[/bold green]")
-    console.print(f"   [dim]Sites: {', '.join(site_names)} | Age: {hours}h | Remote: {remote}[/dim]")
-    
+
+    console.print(f"\n[bold green]✅ Role '{name}' saved successfully![/bold green]")
+    console.print(
+      f"   [dim]Sites: {', '.join(site_names)} | "
+      f"Strictness: {strictness} | "
+      f"Age: {hours}h | "
+      f"Remote: {remote}[/dim]"
+    )
+
+  except ValueError as e:
+    console.print(f"[bold red]Configuration Error:[/bold red] {e}")
   except Exception as e:
-    console.print(f"[red]Validation Error:[/red] {e}")
+    console.print(f"[bold red]Unexpected Error:[/bold red] {e}")
 
 @app.command(name="role-list")
 def role_list():
