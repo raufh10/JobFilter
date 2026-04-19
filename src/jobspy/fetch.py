@@ -88,15 +88,24 @@ class JobResponse(BaseModel):
 def fetch_jobs(config: JobSpyClient) -> JobResponse:
   """
   Scrapes jobs and returns the JobResponse object as is.
+  Includes proxy configuration if LinkedIn is in the site list.
   """
-  raw_jobs_df = scrape_jobs(
-    site_name=config.site_name,
-    search_term=config.search_term,
-    location=config.location,
-    results_wanted=config.results_wanted,
-    hours_old=config.hours_old,
-    country_indeed=config.country_indeed,
-    remote_only=config.remote_only,
-  )
 
+  # Define base arguments
+  scrape_kwargs = {
+    "site_name": config.site_name,
+    "search_term": config.search_term,
+    "location": config.location,
+    "results_wanted": config.results_wanted,
+    "hours_old": config.hours_old,
+    "country_indeed": config.country_indeed,
+    "remote_only": config.remote_only,
+  }
+
+  # Add proxy logic specifically for LinkedIn
+  if "linkedin" in [s.lower() for s in config.site_name]:
+    proxy_list = [config.proxy_url]
+    scrape_kwargs["proxies"] = proxy_list
+
+  raw_jobs_df = scrape_jobs(**scrape_kwargs)
   return JobResponse.from_dataframe(raw_jobs_df)
