@@ -89,3 +89,30 @@ def upsert_job_cache(job_url: str, title: str, score: int, explanation: str, mat
       explanation, 
       json.dumps(matches)
     ))
+
+def get_top_scored_jobs(min_score: float, limit: int = 50) -> List[dict]:
+  """
+  Retrieves the highest scoring jobs from the cache.
+  Used by the 'jobs' CLI command for direct cache viewing.
+  """
+  query = """
+    SELECT job_url, title, score, explanation, matched_skills 
+    FROM jobs 
+    WHERE score >= ? 
+    ORDER BY score DESC 
+    LIMIT ?
+  """
+  
+  with get_connection() as conn:
+    rows = conn.execute(query, (min_score, limit)).fetchall()
+    
+    return [
+      {
+        "title": row["title"],
+        "score": row["score"],
+        "explanation": row["explanation"],
+        "matches": json.loads(row["matched_skills"]),
+        "url": row["job_url"]
+      }
+      for row in rows
+    ]

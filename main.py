@@ -1,5 +1,6 @@
 import typer
 from rich.console import Console
+from rich.table import Table
 from rich.panel import Panel
 
 from src.common import settings
@@ -136,6 +137,39 @@ def fetch(
     run_fetch(role, llm_client=llm_client, min_score=score)
   except Exception as e:
     console.print(f"[bold red]Fetch Error:[/bold red] {e}")
+
+@app.command(name="jobs")
+def jobs_from_cache(
+  score: float = typer.Option(50.0, "--min-score", "-s", help="Minimum score"),
+  limit: int = typer.Option(50, "--limit", "-l", help="Max jobs to show")
+):
+  """View scored jobs directly from the local SQLite cache."""
+  from src.db.crud import get_top_scored_jobs
+  
+  results = get_top_scored_jobs(min_score=score, limit=limit)
+  
+  if not results:
+    console.print(f"[yellow]No cached jobs found with score >= {score}%.[/yellow]")
+    return
+
+  table = Table(
+    title=f"Cached Jobs (Min: {score}% - Matched: {len(results)})", 
+    header_style="bold magenta",
+    show_lines=True
+  )
+  table.add_column("Score", justify="right", style="green")
+  table.add_column("Job Details", style="cyan")
+  table.add_column("Match Logic", style="white")
+
+  for item in results:
+    match_str = ", ".join(item['matches'][:5])
+    table.add_row(
+      f"[bold]{item['score']}%[/bold]",
+      f"{item['title']}\n[dim]{item['url']}[/dim]",
+      f"[italic]'{item['explanation']}'[/italic]\n[dim]Skills: {match_str}[/dim]"
+    )
+
+  console.print(table)
 
 if __name__ == "__main__":
   app()

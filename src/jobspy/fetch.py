@@ -7,6 +7,7 @@ from typing import Optional, Any, List
 from datetime import date
 
 from jobspy import scrape_jobs
+from src.common import settings
 from src.jobspy.client import JobSpyClient
 from src.tiktoken import BatchTokenCount, TokenCount, TokenCounter
 

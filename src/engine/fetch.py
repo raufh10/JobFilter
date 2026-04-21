@@ -108,7 +108,7 @@ class JobScorer:
   def _display_table(self, results: list):
     """Renders results in a formatted Rich table."""
     table = Table(
-      title=f"Scored Jobs for {self.role.name} (Min: {self.min_score}%)", 
+      title=f"Scored Jobs for {self.role.name} (Min: {self.min_score}% - Matched: {len(results)})", 
       header_style="bold magenta",
       show_lines=True
     )
@@ -117,7 +117,7 @@ class JobScorer:
     table.add_column("Job Details", style="cyan")
     table.add_column("Match Logic", style="white")
 
-    for item in results[:15]:
+    for item in results:
       match_str = ", ".join(item['matches'][:5])
       table.add_row(
         f"[bold]{item['score']}%[/bold]",
