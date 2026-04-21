@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "job-filter"
-version = "0.1.0"
+name = "JobFilter"
+version = "0.2.0"
 description = "LLM-powered job filtering and scoring engine"
 requires-python = ">=3.11"
 dependencies = [
@@ -15,6 +15,7 @@ dependencies = [
   "httpx>=0.28.0",
   "pandas>=2.2.0",
   "python-jobspy>=1.1.0",
+  "tiktoken>=0.12.0"
 ]
 
 [project.optional-dependencies]

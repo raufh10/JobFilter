@@ -1,6 +1,6 @@
 # JobFilter
 
-A CLI tool to fetch, score, and filter job listings using **JobSpy** and **LLM-driven rubric analysis**.
+A CLI tool to fetch, score, and filter job listings using [**JobSpy**](https://github.com/speedyapply/JobSpy) and **LLM-driven rubric analysis**.
 
 ---
 
@@ -29,10 +29,26 @@ pip install -e ".[dev]"
 Create a `.env` file in the root (managed via `src/common/settings.py`):
 
 ```env
+ENVIRONMENT=development
 OPENAI_API_KEY=your_sk_key_here
+PROXY_URL=your_proxy_url_here
 ```
 
 ---
+
+## ✨ Features
+ * **⚡ Threaded Scoring**: Concurrent LLM analysis using ThreadPoolExecutor to speed up processing for large batches of jobs.
+ * **📂 Persistent Cache**: Integrated **SQLite** backend that caches LLM scores and job metadata, preventing redundant AI costs and repeated analysis.
+ * **🔍 Multi-Term Search**: Support for multiple search keywords per role, automatically merging results and deduplicating job listings.
+ * **🛡️ Smart Proxy Logic**: Automatic detection of LinkedIn scraping requirements with enforced proxy configuration to prevent IP blocks.
+
+## ⚙️ Search Strictness
+When configuring a **Role**, you can define a strictness level to control how the scraper filters initial results before they even reach the LLM:
+| Level | Filter Logic | Best For |
+|---|---|---|
+| **High** | **Title Only**: Keywords must exist in the job title. | High-intent, specific role targeting. |
+| **Medium** | **Title or Description**: Keywords can exist anywhere in the post. | Balanced discovery (Default). |
+| **Low** | **No Filter**: Passes all scraper results directly to scoring. | Broad market research and exploration. |
 
 ## 🖥️ Usage
 
