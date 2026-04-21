@@ -58,6 +58,13 @@ def role_add():
   sites_input = typer.prompt("Sites (comma separated)", default="indeed")
   site_names = [s.strip().lower() for s in sites_input.split(",")]
 
+  if "linkedin" in site_names:
+    console.print(
+      "\n[bold yellow]⚠️  LinkedIn Detected:[/bold yellow] "
+      "Please ensure you have a valid [cyan]proxy_url[/cyan] configured in your "
+      "environment or settings before running [bold green]fetch[/bold green].\n"
+    )
+
   results = typer.prompt("Results wanted", default=20, type=int)
   hours = typer.prompt("Hours old (max age of post)", default=48, type=int)
   remote = typer.confirm("Remote only?", default=False)
@@ -68,10 +75,9 @@ def role_add():
   ).lower()
 
   try:
-    # This instantiation triggers the Pydantic model_validator (LinkedIn proxy check)
     client_config = JobSpyClient(
       site_name=site_names,
-      search_term=search_term, 
+      search_term=search_terms, 
       location=location, 
       results_wanted=results,
       hours_old=hours,

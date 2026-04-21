@@ -126,7 +126,13 @@ def fetch_jobs(config: JobSpyClient) -> JobResponse:
     }
 
     if "linkedin" in [s.lower() for s in config.site_name]:
-      scrape_kwargs["proxies"] = [config.proxy_url]
+      if settings.proxy_url:
+        scrape_kwargs["proxies"] = [settings.proxy_url]
+      else:
+        raise ValueError(
+          "LinkedIn scraping requires a proxy. "
+          "Please set PROXY_URL in your .env file"
+        )
 
     # 2. Scrape and merge
     try:

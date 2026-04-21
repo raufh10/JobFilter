@@ -1,70 +1,66 @@
 import json
-from pathlib import Path
 from typing import List, Optional, Union
 from pydantic import BaseModel, Field, ConfigDict
 
 from src.jobspy import JobSpyClient
+from src.db.crud import upsert_role, get_all_roles
 
 class Role(BaseModel):
   """Defines a specific job role and its search configuration."""
   model_config = ConfigDict(extra='forbid')
-
-  name: str = Field(..., description="Unique name for the role, e.g., 'Data Analyst'")
+  name: str
   client: JobSpyClient
 
 class Roles(BaseModel):
-  """Container for managing multiple roles with shortcut support."""
+  """Container for managing multiple roles with SQLite backend."""
   model_config = ConfigDict(extra='forbid')
-
   roles: List[Role] = Field(default_factory=list)
 
-  def save(self, path: Path = Path("data/cli/roles.json")):
-    """Saves the roles configuration to a JSON file."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as f:
-      f.write(self.model_dump_json(indent=2))
+  @classmethod
+  def _map_row_to_role(cls, row: dict) -> Role:
+    """Helper to transform a raw DB row into a validated Role object."""
+    return Role(
+      name=row["name"],
+      client=JobSpyClient(
+        site_name=json.loads(row["site_name"]),
+        search_term=json.loads(row["search_term"]),
+        location=row["location"],
+        results_wanted=row["results_wanted"],
+        hours_old=row.get("hours_old"),
+        country_indeed=row["country_indeed"],
+        remote_only=bool(row["remote_only"]),
+        strictness=row["strictness"]
+      )
+    )
 
   @classmethod
-  def load(cls, path: Path = Path("data/cli/roles.json")) -> "Roles":
-    """Loads the roles configuration. Returns empty container if not found."""
-    if not path.exists():
-      return cls()
-    try:
-      with path.open("r", encoding="utf-8") as f:
-        data = json.load(f)
-        roles_list = data.get("roles", []) if isinstance(data, dict) else data
-        return cls(roles=roles_list)
-    except (json.JSONDecodeError, ValueError):
-      return cls()
+  def load(cls) -> "Roles":
+    """Loads all roles from SQLite and parses them into Role objects."""
+    raw_rows = get_all_roles()
+    return cls(roles=[cls._map_row_to_role(dict(row)) for row in raw_rows])
+
+  def save(self):
+    """Blindly passes roles to the DB upsert logic."""
+    for role in self.roles:
+      upsert_role(role)
 
   def get_role(self, identifier: Union[str, int]) -> Optional[Role]:
-    """
-    Retrieves a role by its name (str) or its shortcut index (int).
-    Indices start at 1 for user-friendliness.
-    """
+    """Retrieves a role by name or shortcut index (1-based)."""
+    # Refresh roles to ensure we have current DB state
+    current_roles = self.load().roles
+    
     if isinstance(identifier, int):
-      # Adjusting to 1-based indexing for the CLI shortcut
       index = identifier - 1
-      if 0 <= index < len(self.roles):
-        return self.roles[index]
+      if 0 <= index < len(current_roles):
+        return current_roles[index]
       return None
 
-    for role in self.roles:
-      if role.name.lower() == identifier.lower():
+    for role in current_roles:
+      if role.name.lower() == str(identifier).lower():
         return role
     return None
 
-  def list_roles(self):
-    """Prints roles with their associated shortcut indices."""
-    if not self.roles:
-      print("No roles configured.")
-      return
-    
-    for i, role in enumerate(self.roles, 1):
-      print(f"[{i}] {role.name}")
-
   def add_role(self, role: Role, overwrite: bool = True):
-    """Adds a new role or replaces an existing one by name."""
-    if overwrite:
-      self.roles = [r for r in self.roles if r.name.lower() != role.name.lower()]
-    self.roles.append(role)
+    """Directly saves a role to SQLite and refreshes local state."""
+    upsert_role(role)
+    self.roles = self.load().roles
