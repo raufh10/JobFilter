@@ -11,7 +11,7 @@ def get_connection():
   return conn
 
 def init_db():
-  """Initializes the roles table if it doesn't exist."""
+  """Initialize the tables if it doesn't exist."""
   with get_connection() as conn:
     conn.execute("""
       CREATE TABLE IF NOT EXISTS roles (
@@ -27,3 +27,15 @@ def init_db():
         strictness TEXT NOT NULL
       )
     """)
+
+    conn.execute("""
+      CREATE TABLE IF NOT EXISTS jobs (
+        job_url TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        score INTEGER,
+        explanation TEXT,
+        matched_skills TEXT,
+        first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    """)
+

@@ -7,9 +7,10 @@ from src.llm import LLMClient, generate_structured_response
 from src.engine.scores import JobMatchScore, SCORING_SYSTEM_PROMPT
 from src.engine.roles import Role, Roles
 from src.engine.resume import Resume
+from src.db.crud import get_cached_scores, upsert_job_cache
 
 console = Console()
-
+    
 class JobScorer:
   def __init__(self, role: Role, resume: Resume, llm_client: LLMClient, min_score: float = 0.0):
     self.role = role
@@ -18,7 +19,7 @@ class JobScorer:
     self.min_score = min_score
 
   def run(self):
-    """Main execution flow: Fetch -> LLM Score -> Filter -> Display."""
+    """Main execution flow: Fetch -> Cache Check -> LLM Score -> Save -> Display."""
     # 1. Fetch Jobs
     response: JobResponse = fetch_jobs(self.role.client)
 
@@ -26,42 +27,63 @@ class JobScorer:
       console.print("[yellow]No jobs found matching the criteria.[/yellow]")
       return
 
-    scored_results = []
+    # 2. Check Cache for existing scores
+    all_urls = [job.job_url for job in response.jobs]
+    cache_map = get_cached_scores(all_urls)
     
-    # 2. Score jobs using LLM with a progress bar
-    with Progress(
-      SpinnerColumn(),
-      TextColumn("[progress.description]{task.description}"),
-      console=console
-    ) as progress:
-      task = progress.add_task(f"[cyan]Scoring {len(response.jobs)} jobs...", total=len(response.jobs))
-      
-      for job in response.jobs:
-        try:
-          # Construct input combining job description and candidate resume
-          user_input = f"RESUME:\n{self.resume.content}\n\nJOB DESCRIPTION:\n{job.description}"
-          
-          # Call structured LLM response
-          scored_data: JobMatchScore = generate_structured_response(self.llm_client, user_input)
-          
-          if scored_data and scored_data.score >= self.min_score:
-            scored_results.append({
-              "title": job.title,
-              "score": scored_data.score,
-              "matches": scored_data.matched_skills,
-              "explanation": scored_data.explanation,
-              "url": job.job_url
-            })
-        except Exception as e:
-          console.print(f"[dim red]Failed to score job '{job.title}': {e}[/dim red]")
-        
-        progress.advance(task)
+    scored_results = []
+    jobs_to_score = []
+
+    # Separate cached from new
+    for job in response.jobs:
+      if job.job_url in cache_map:
+        cached_data = cache_map[job.job_url]
+        if cached_data["score"] >= self.min_score:
+          scored_results.append(cached_data)
+      else:
+        jobs_to_score.append(job)
+
+    # 3. Score only non-cached jobs
+    if jobs_to_score:
+      with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console
+      ) as progress:
+        task = progress.add_task(f"[cyan]Scoring {len(jobs_to_score)} new jobs...", total=len(jobs_to_score))
+
+        for job in jobs_to_score:
+          try:
+            user_input = f"RESUME:\n{self.resume.content}\n\nJOB DESCRIPTION:\n{job.description}"
+            scored_data: JobMatchScore = generate_structured_response(self.llm_client, user_input)
+
+            if scored_data:
+              upsert_job_cache(
+                job_url=job.job_url,
+                title=job.title,
+                score=scored_data.score,
+                explanation=scored_data.explanation,
+                matches=scored_data.matched_skills
+              )
+
+              if scored_data.score >= self.min_score:
+                scored_results.append({
+                  "title": job.title,
+                  "score": scored_data.score,
+                  "matches": scored_data.matched_skills,
+                  "explanation": scored_data.explanation,
+                  "url": job.job_url
+                })
+          except Exception as e:
+            console.print(f"[dim red]Failed to score job '{job.title}': {e}[/dim red]")
+
+          progress.advance(task)
 
     if not scored_results:
       console.print(f"[yellow]No jobs met the minimum score of {self.min_score}%.[/yellow]")
       return
 
-    # 3. Sort and Display
+    # 4. Sort and Display
     scored_results.sort(key=lambda x: x['score'], reverse=True)
     self._display_table(scored_results)
 
