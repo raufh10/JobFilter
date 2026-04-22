@@ -158,8 +158,8 @@ def jobs_from_cache(
     show_lines=True
   )
   table.add_column("Score", justify="right", style="green")
-  table.add_column("Job Details", style="cyan")
-  table.add_column("Match Logic", style="white")
+  table.add_column("Job Details", style="cyan", overflow="fold")
+  table.add_column("Match Logic", style="white", overflow="fold")
 
   for item in results:
     match_str = ", ".join(item['matches'][:5])
